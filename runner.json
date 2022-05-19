@@ -1,0 +1,20 @@
+  {
+    "id": "JsRunner",
+    "runnerScript": "node ./lib/index.js {config} {cwd}",
+    "canUseChannel": [
+      "file",
+      "ws"
+    ],
+    "canUseSerialization": [
+      "json",
+      "turtle",
+      "trig",
+      "n-triples",
+      "n-quads",
+      "n3"
+    ],
+    "requiredFields": [
+      "jsFile",
+      "methodName"
+    ]
+  }
