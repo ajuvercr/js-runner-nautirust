@@ -1,10 +1,11 @@
   {
     "id": "JsRunner",
-    "runnerScript": "node ./lib/index.js {config} {cwd}",
+    "runnerScript": "node ./lib/index.js {config}",
     "canUseChannel": [
         "kafka",
       "file",
-      "ws"
+      "ws",
+      "kafka"
     ],
     "canUseSerialization": [
       "json",

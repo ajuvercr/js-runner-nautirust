@@ -93,9 +93,6 @@ function calculateSerializers(configs: any[]): { [label: string]: Serializers<un
 async function main() {
     const args = process.argv.slice(2);
     const config_location = args[0];
-    const parent_work_dir = args[1] || "./";
-
-    process.chdir(parent_work_dir);
 
     const content = await readFile(config_location);
     const config: Config = JSON.parse(content.toString());
@@ -130,11 +127,13 @@ async function main() {
 
     await Promise.all([srPromise, swPromise]);
 
-    await launchFunction(config.processorConfig, config.args, parent_work_dir);
+    await launchFunction(config.processorConfig, config.args);
 }
 
-async function launchFunction(processorConfig: ProcessorConfig, argDict: any, pWd: string) {
-    const root = path.join(pWd, processorConfig.location || process.cwd(), processorConfig.config.jsFile);
+async function launchFunction(processorConfig: ProcessorConfig, argDict: any) {
+    if (processorConfig.location) process.chdir(processorConfig.location)
+
+    const root = path.join(processorConfig.location || process.cwd(), processorConfig.config.jsFile);
     const jsProgram = require(root);
     const args = processorConfig.args.map(arg => argDict[arg.id]);
 
