@@ -93,6 +93,7 @@ function calculateSerializers(configs: any[]): { [label: string]: Serializers<un
 async function main() {
     const args = process.argv.slice(2);
     const config_location = args[0];
+    process.chdir(args[1] || "./");
 
     const content = await readFile(config_location);
     const config: Config = JSON.parse(content.toString());

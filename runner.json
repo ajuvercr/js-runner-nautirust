@@ -1,8 +1,7 @@
   {
     "id": "JsRunner",
-    "runnerScript": "node ./lib/index.js {config}",
+    "runnerScript": "node ./lib/index.js {config} {cwd}",
     "canUseChannel": [
-        "kafka",
       "file",
       "ws",
       "kafka"
