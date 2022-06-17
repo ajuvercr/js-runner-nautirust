@@ -37,7 +37,11 @@ function getDeserializer(type: string): (member: string) => unknown {
     if (!!ser) {
         return (member) => {
             const parser = new N3.Parser({ format: ser });
-            return parser.parse(member);
+            try {
+                return parser.parse(member);
+            } catch (e) {
+                console.error(e);
+            }
         };
     }
 
@@ -45,12 +49,14 @@ function getDeserializer(type: string): (member: string) => unknown {
         case "application/json":
         case "json":
             return JSON.parse;
+        case "plain":
+            return x => x;
         default:
             throw "Unknown serialization " + type;
     }
 }
 
-function getSerializer(type: string): (member: N3.Quad[]) => string {
+function getSerializer(type: string): (member: unknown) => string {
     let ser: string | undefined;
     if (type.toLocaleLowerCase().includes("turtle")) ser = "text/turtle";
     if (type.toLocaleLowerCase().includes("trig")) ser = "TriG";
@@ -61,7 +67,7 @@ function getSerializer(type: string): (member: N3.Quad[]) => string {
     if (!!ser) {
         return (member) => {
             const parser = new N3.Writer({ format: ser });
-            return parser.quadsToString(member);
+            return parser.quadsToString(<N3.Quad[]>member);
         };
     }
 
@@ -69,6 +75,8 @@ function getSerializer(type: string): (member: N3.Quad[]) => string {
         case "application/json":
         case "json":
             return JSON.stringify;
+        case "plain":
+            return (x) => <string>x;
         default:
             throw "Unknown serialization " + type;
     }
