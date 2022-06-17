@@ -12,7 +12,9 @@
       "trig",
       "n-triples",
       "n-quads",
-      "n3"
+      "n3",
+      "plain",
+      "xml"
     ],
     "requiredFields": [
       "jsFile",

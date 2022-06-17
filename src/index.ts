@@ -51,6 +51,8 @@ function getDeserializer(type: string): (member: string) => unknown {
             return JSON.parse;
         case "plain":
             return x => x;
+        case "xml":
+            return x => new DOMParser().parseFromString(x, "text/xml");
         default:
             throw "Unknown serialization " + type;
     }
@@ -71,12 +73,14 @@ function getSerializer(type: string): (member: unknown) => string {
         };
     }
 
-    switch (type) {
+    switch (type.toLocaleLowerCase()) {
         case "application/json":
         case "json":
             return JSON.stringify;
         case "plain":
             return (x) => <string>x;
+        case "xml":
+            return (x) => new XMLSerializer().serializeToString(x instanceof Document ? x.getRootNode() : <Node>x);
         default:
             throw "Unknown serialization " + type;
     }
