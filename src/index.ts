@@ -50,7 +50,8 @@ function getDeserializer(type: string): (member: string) => unknown {
         case "json":
             return JSON.parse;
         case "plain":
-            return x => x;
+            console.log("plain deserializer");
+            return (x) => x;
         case "xml":
             return x => new DOMParser().parseFromString(x, "text/xml");
         default:
@@ -105,6 +106,7 @@ function calculateSerializers(configs: any[]): { [label: string]: Serializers<un
 async function main() {
     const args = process.argv.slice(2);
     const config_location = args[0];
+    console.log("args", args);
     process.chdir(args[1] || "./");
 
     const content = await readFile(config_location);

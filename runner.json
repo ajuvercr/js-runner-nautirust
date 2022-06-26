@@ -1,5 +1,6 @@
   {
     "id": "JsRunner",
+    "start": "npm install && npm run build",
     "runnerScript": "node ./lib/index.js {config} {cwd}",
     "canUseChannel": [
       "file",
