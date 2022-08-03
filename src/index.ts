@@ -1,7 +1,7 @@
 import { AllReaderFactory, AllWriterFactory } from "@treecg/connector-all";
 import { Deserializers, Serializers } from "@treecg/connector-types";
-import { match } from "assert";
 import { readFile } from "fs/promises";
+import * as jsonld from "jsonld";
 import path = require("node:path");
 
 import * as N3 from "n3";
@@ -26,7 +26,7 @@ function squashConfig(configs: any[]): { [label: string]: any } {
     return out;
 }
 
-function getDeserializer(type: string): (member: string) => unknown {
+function getDeserializer(type: string): (member: string) => Promise<unknown> | unknown {
     let ser: string | undefined;
     if (type.toLocaleLowerCase().includes("turtle")) ser = "text/turtle";
     if (type.toLocaleLowerCase().includes("trig")) ser = "TriG";
@@ -49,6 +49,8 @@ function getDeserializer(type: string): (member: string) => unknown {
         case "application/json":
         case "json":
             return JSON.parse;
+        case "jsonld":
+            return async (json) => await jsonld.toRDF(JSON.parse(json));
         case "plain":
             console.log("plain deserializer");
             return (x) => x;
@@ -59,7 +61,7 @@ function getDeserializer(type: string): (member: string) => unknown {
     }
 }
 
-function getSerializer(type: string): (member: unknown) => string {
+function getSerializer(type: string): (member: unknown) => string | Promise<string> {
     let ser: string | undefined;
     if (type.toLocaleLowerCase().includes("turtle")) ser = "text/turtle";
     if (type.toLocaleLowerCase().includes("trig")) ser = "TriG";
@@ -78,6 +80,8 @@ function getSerializer(type: string): (member: unknown) => string {
         case "application/json":
         case "json":
             return JSON.stringify;
+        case "jsonld":
+            return async (qs) => JSON.stringify(await <Promise<Object>>jsonld.fromRDF(<object> qs, { "format": undefined }));
         case "plain":
             return (x) => <string>x;
         case "xml":
@@ -106,12 +110,10 @@ function calculateSerializers(configs: any[]): { [label: string]: Serializers<un
 async function main() {
     const args = process.argv.slice(2);
     const config_location = args[0];
-    console.log("args", args);
     process.chdir(args[1] || "./");
 
     const content = await readFile(config_location);
     const config: Config = JSON.parse(content.toString());
-
 
     const readerFactory = new AllReaderFactory();
     const writerFactory = new AllWriterFactory();

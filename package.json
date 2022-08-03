@@ -22,9 +22,10 @@
     "author": "Arthur Vercruysse",
     "license": "ISC",
     "dependencies": {
-        "@treecg/connector-all": "^1.0.4",
-        "@treecg/connector-types": "^1.1.1",
+        "@treecg/connector-all": "^1.0.5",
+        "@treecg/connector-types": "^1.1.3",
         "@treecg/types": "^0.2.4",
+        "jsonld": "^6.0.0",
         "n3": "^1.16.2"
     },
     "devDependencies": {
