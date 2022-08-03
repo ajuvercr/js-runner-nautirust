@@ -1,24 +1,26 @@
-  {
+{
     "id": "JsRunner",
     "start": "npm install && npm run build",
+    "docker": "node ./docker.js {config} {cwd}",
     "runnerScript": "node ./lib/index.js {config} {cwd}",
     "canUseChannel": [
-      "file",
-      "ws",
-      "kafka"
+        "file",
+        "ws",
+        "kafka"
     ],
     "canUseSerialization": [
-      "json",
-      "turtle",
-      "trig",
-      "n-triples",
-      "n-quads",
-      "n3",
-      "plain",
-      "xml"
+        "json",
+        "jsonld",
+        "turtle",
+        "trig",
+        "n-triples",
+        "n-quads",
+        "n3",
+        "plain",
+        "xml"
     ],
     "requiredFields": [
-      "jsFile",
-      "methodName"
+        "jsFile",
+        "methodName"
     ]
-  }
+}
