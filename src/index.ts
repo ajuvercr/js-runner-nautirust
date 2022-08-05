@@ -1,10 +1,36 @@
-import { AllReaderFactory, AllWriterFactory } from "@treecg/connector-all";
-import { Deserializers, Serializers } from "@treecg/connector-types";
+import { AllReaderFactory, AllWriterFactory, Config as CConfig } from "@treecg/connector-all";
+import { Deserializers, Serializers, Configs } from "@treecg/connector-types";
 import { readFile } from "fs/promises";
 import * as jsonld from "jsonld";
 import path = require("node:path");
 
 import * as N3 from "n3";
+type PlainArgument = {
+    type: "Plain",
+    value: any,
+}
+
+type FileArgument = {
+    type: "File",
+    path: string,
+    serialization: string,
+}
+
+type ChannelConfig = {
+    type: string,
+    serialization: string,
+    config: CConfig,
+}
+
+type StreamReaderArgument = {
+    type: "StreamReader",
+    fields: { [id: string]: ChannelConfig },
+}
+
+type StreamWriterArgument = {
+    type: "StreamWriter",
+    fields: { [id: string]: ChannelConfig },
+}
 
 type ProcessorConfig = {
     config: {
@@ -15,15 +41,12 @@ type ProcessorConfig = {
     args: { id: string, type: string }[]
 }
 
+type Argument = FileArgument | PlainArgument | StreamWriterArgument | StreamReaderArgument;
+
+
 type Config = {
     processorConfig: ProcessorConfig,
-    args: any,
-}
-
-function squashConfig(configs: any[]): { [label: string]: any } {
-    const out: { [label: string]: any } = {};
-    configs.forEach(config => out[config.id] = config);
-    return out;
+    args: { [id: string]: Argument },
 }
 
 function getDeserializer(type: string): (member: string) => Promise<unknown> | unknown {
@@ -52,7 +75,6 @@ function getDeserializer(type: string): (member: string) => Promise<unknown> | u
         case "jsonld":
             return async (json) => await jsonld.toRDF(JSON.parse(json));
         case "plain":
-            console.log("plain deserializer");
             return (x) => x;
         case "xml":
             return x => new DOMParser().parseFromString(x, "text/xml");
@@ -81,7 +103,7 @@ function getSerializer(type: string): (member: unknown) => string | Promise<stri
         case "json":
             return JSON.stringify;
         case "jsonld":
-            return async (qs) => JSON.stringify(await <Promise<Object>>jsonld.fromRDF(<object> qs, { "format": undefined }));
+            return async (qs) => JSON.stringify(await <Promise<Object>>jsonld.fromRDF(<object>qs, { "format": undefined }));
         case "plain":
             return (x) => <string>x;
         case "xml":
@@ -91,70 +113,72 @@ function getSerializer(type: string): (member: unknown) => string | Promise<stri
     }
 }
 
-function calculateDeserializers(configs: any[]): { [label: string]: Deserializers<unknown> } {
+function calculateDeserializers(configs: { [id: string]: ChannelConfig }): { [label: string]: Deserializers<unknown> } {
     const out: { [label: string]: Deserializers<unknown> } = {};
-
-    configs.forEach(config => out[config.id] = getDeserializer(config.serialization));
+    for (let key of Object.keys(configs)) {
+        out[key] = getDeserializer(configs[key].serialization);
+    }
 
     return out;
 }
 
-function calculateSerializers(configs: any[]): { [label: string]: Serializers<unknown> } {
+function calculateSerializers(configs: { [id: string]: ChannelConfig }): { [label: string]: Serializers<unknown> } {
     const out: { [label: string]: Serializers<unknown> } = {};
 
-    configs.forEach(config => out[config.id] = getSerializer(config.serialization));
+    for (let key of Object(configs).keys()) {
+        out[key] = getSerializer(configs[key].serialization);
+    }
 
     return out;
+}
+
+function get_config_location() {
+    const args = process.argv.slice(2);
+    process.chdir(args[1] || "./");
+    return args[0];
 }
 
 async function main() {
-    const args = process.argv.slice(2);
-    const config_location = args[0];
-    process.chdir(args[1] || "./");
-
+    const config_location = get_config_location();
     const content = await readFile(config_location);
-    const config: Config = JSON.parse(content.toString());
+    const { args, processorConfig }: Config = JSON.parse(content.toString());
 
     const readerFactory = new AllReaderFactory();
     const writerFactory = new AllWriterFactory();
 
     // TODO validate config, we write decent program!
 
-    const streamReaderIds = config.processorConfig.args
-        .filter(arg => arg.type.toLowerCase() === "streamreader")
-        .map(arg => arg.id);
+    const arg_values: any[] = await Promise.all(processorConfig.args.map(a => args[a.id]).map(
+        async arg => {
+            switch (arg.type) {
+                case "StreamReader":
+                    const deserializers = calculateDeserializers(arg.fields);
+                    const readerConfigs = <Configs<unknown, Config>>arg.fields;
+                    return await readerFactory.buildReader(readerConfigs, deserializers);
+                case "StreamWriter":
+                    const serializers = calculateSerializers(arg.fields);
+                    const writerConfigs = <Configs<unknown, Config>>arg.fields;
+                    return await writerFactory.buildReader(writerConfigs, serializers);
+                case "File":
+                    const deserializer = getDeserializer(arg.serialization);
+                    const content = await readFile(arg.path, { encoding: "utf8" });
+                    return deserializer(content);
+                case "Plain":
+                    return arg.value;
+            }
+        }
+    ));
 
-    const streamWriterIds = config.processorConfig.args
-        .filter(arg => arg.type.toLowerCase() === "streamwriter")
-        .map(arg => arg.id);
-
-    const srPromise = Promise.all(streamReaderIds.map(async id => {
-        const readerConfig = squashConfig(config.args[id]);
-        const deserializers = calculateDeserializers(config.args[id]);
-        const reader = await readerFactory.buildReader(<any>readerConfig, <any>deserializers);
-        config.args[id] = reader;
-    }));
-
-    const swPromise = Promise.all(streamWriterIds.map(async id => {
-        const writerConfig = squashConfig(config.args[id]);
-        const serializers = calculateSerializers(config.args[id]);
-        const writer = await writerFactory.buildReader(<any>writerConfig, <any>serializers);
-        config.args[id] = writer;
-    }));
-
-    await Promise.all([srPromise, swPromise]);
-
-    await launchFunction(config.processorConfig, config.args);
+    await launchFunction(processorConfig, arg_values);
 }
 
-async function launchFunction(processorConfig: ProcessorConfig, argDict: any) {
+async function launchFunction(processorConfig: ProcessorConfig, arg_values: any[]) {
     if (processorConfig.location) process.chdir(processorConfig.location)
 
     const root = path.join(processorConfig.location || process.cwd(), processorConfig.config.jsFile);
     const jsProgram = require(root);
-    const args = processorConfig.args.map(arg => argDict[arg.id]);
 
-    jsProgram[processorConfig.config.methodName](...args);
+    jsProgram[processorConfig.config.methodName](...arg_values);
 }
 
 main()
