@@ -125,7 +125,7 @@ function calculateDeserializers(configs: { [id: string]: ChannelConfig }): { [la
 function calculateSerializers(configs: { [id: string]: ChannelConfig }): { [label: string]: Serializers<unknown> } {
     const out: { [label: string]: Serializers<unknown> } = {};
 
-    for (let key of Object(configs).keys()) {
+    for (let key of Object.keys(configs)) {
         out[key] = getSerializer(configs[key].serialization);
     }
 
